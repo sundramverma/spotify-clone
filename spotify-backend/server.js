@@ -30,7 +30,11 @@ connectCloudinary();
 app.use(express.json());
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://sundram-spotify-clone.vercel.app"
+    ],
     credentials: true,
   })
 );
@@ -60,7 +64,7 @@ app.use(
 );
 
 // =========================
-// 🔍 JioSaavn Proxy (FINAL – SINGLE & SAFE)
+// 🔍 JioSaavn Proxy
 // =========================
 app.get("/api/jiosaavn/search", async (req, res) => {
   const { query } = req.query;
@@ -72,7 +76,6 @@ app.get("/api/jiosaavn/search", async (req, res) => {
   try {
     let results = [];
 
-    // 🔹 TRY API 1
     try {
       const r1 = await fetch(
         `https://jiosaavn-api.vercel.app/search/songs?query=${encodeURIComponent(
@@ -81,18 +84,14 @@ app.get("/api/jiosaavn/search", async (req, res) => {
         {
           headers: {
             "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json",
+            Accept: "application/json",
           },
         }
       );
-
       const j1 = await r1.json();
       results = j1?.data?.results || [];
-    } catch (e) {
-      console.log("⚠️ JioSaavn API-1 failed");
-    }
+    } catch {}
 
-    // 🔹 FALLBACK API 2
     if (!results.length) {
       try {
         const r2 = await fetch(
@@ -102,9 +101,7 @@ app.get("/api/jiosaavn/search", async (req, res) => {
         );
         const j2 = await r2.json();
         results = j2?.data?.results || [];
-      } catch (e) {
-        console.log("⚠️ JioSaavn API-2 failed");
-      }
+      } catch {}
     }
 
     return res.json({
@@ -112,7 +109,6 @@ app.get("/api/jiosaavn/search", async (req, res) => {
       data: { results },
     });
   } catch (err) {
-    console.error("❌ JioSaavn error:", err.message);
     return res.json({ success: false, data: { results: [] } });
   }
 });
@@ -131,5 +127,5 @@ app.use("/api/youtube", youtubeRouter);
 app.get("/", (req, res) => res.send("🚀 API Working"));
 
 app.listen(port, () => {
-  console.log(`🔥 Server running on http://localhost:${port}`);
+  console.log(`🔥 Server running on port ${port}`);
 });
