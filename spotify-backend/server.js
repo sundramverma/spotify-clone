@@ -33,7 +33,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:5174",
-      "https://sundram-spotify-clone.vercel.app"
+      "https://sundram-spotify-clone.vercel.app",
     ],
     credentials: true,
   })
@@ -64,7 +64,7 @@ app.use(
 );
 
 // =========================
-// 🔍 JioSaavn Proxy
+// 🔍 JioSaavn Proxy (FINAL – RENDER SAFE)
 // =========================
 app.get("/api/jiosaavn/search", async (req, res) => {
   const { query } = req.query;
@@ -74,41 +74,22 @@ app.get("/api/jiosaavn/search", async (req, res) => {
   }
 
   try {
-    let results = [];
+    const response = await fetch(
+      `https://saavn.dev/api/search/songs?query=${encodeURIComponent(
+        query
+      )}&limit=20`
+    );
 
-    try {
-      const r1 = await fetch(
-        `https://jiosaavn-api.vercel.app/search/songs?query=${encodeURIComponent(
-          query
-        )}`,
-        {
-          headers: {
-            "User-Agent": "Mozilla/5.0",
-            Accept: "application/json",
-          },
-        }
-      );
-      const j1 = await r1.json();
-      results = j1?.data?.results || [];
-    } catch {}
-
-    if (!results.length) {
-      try {
-        const r2 = await fetch(
-          `https://saavn.dev/api/search/songs?query=${encodeURIComponent(
-            query
-          )}&limit=20`
-        );
-        const j2 = await r2.json();
-        results = j2?.data?.results || [];
-      } catch {}
-    }
+    const json = await response.json();
 
     return res.json({
-      success: results.length > 0,
-      data: { results },
+      success: true,
+      data: {
+        results: json?.data?.results || [],
+      },
     });
-  } catch (err) {
+  } catch (error) {
+    console.error("❌ JioSaavn API error:", error.message);
     return res.json({ success: false, data: { results: [] } });
   }
 });
