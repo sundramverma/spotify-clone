@@ -1,13 +1,12 @@
 import express from "express";
 import { downloadFile } from "../utils/downloadFile.js";
-import Song from "../models/Song.js";       // uploaded songs model
-import Podcast from "../models/Podcast.js"; // uploaded podcasts model
+import Song from "../models/Song.js";       
+import Podcast from "../models/Podcast.js"; 
 
 const router = express.Router();
 
 /* ================================
    🎵 DOWNLOAD YOUTUBE SONG
-   URL: /api/download/youtube/:id
 ================================ */
 router.get("/youtube/:id", async (req, res) => {
   try {
@@ -27,8 +26,6 @@ router.get("/youtube/:id", async (req, res) => {
 
 /* ================================
    🎶 DOWNLOAD API SONG (REMOTE URL)
-   URL: /api/download/api-song
-   body: { audioUrl, name }
 ================================ */
 router.post("/api-song", async (req, res) => {
   try {
@@ -51,7 +48,6 @@ router.post("/api-song", async (req, res) => {
 
 /* ================================
    📂 DOWNLOAD UPLOADED SONG
-   URL: /api/download/song/:id
 ================================ */
 router.get("/song/:id", async (req, res) => {
   try {
@@ -61,7 +57,7 @@ router.get("/song/:id", async (req, res) => {
     }
 
     await downloadFile({
-      filePath: song.file, // local path
+      filePath: song.file,
       res,
       filename: `${song.name}.mp3`,
     });
@@ -73,7 +69,6 @@ router.get("/song/:id", async (req, res) => {
 
 /* ================================
    🎙️ DOWNLOAD UPLOADED PODCAST
-   URL: /api/download/podcast/:id
 ================================ */
 router.get("/podcast/:id", async (req, res) => {
   try {

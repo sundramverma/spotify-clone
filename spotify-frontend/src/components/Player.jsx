@@ -15,35 +15,27 @@ function Player() {
 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isSeeking, setIsSeeking] = useState(false); // 🔥 VERY IMPORTANT
+  const [isSeeking, setIsSeeking] = useState(false);
 
-  /* 🔊 AUDIO EVENTS */
   useEffect(() => {
-    const audio = audioRef.current;
+    const audio = audioRef?.current;
     if (!audio) return;
 
-    const onTimeUpdate = () => {
-      if (!isSeeking) {
-        setCurrentTime(audio.currentTime || 0);
-      }
-    };
+    const onTime = () =>
+      !isSeeking && setCurrentTime(audio.currentTime || 0);
+    const onMeta = () =>
+      !isNaN(audio.duration) && setDuration(audio.duration);
 
-    const onLoadedMeta = () => {
-      if (!isNaN(audio.duration)) {
-        setDuration(audio.duration);
-      }
-    };
-
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("loadedmetadata", onLoadedMeta);
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("loadedmetadata", onMeta);
 
     return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("loadedmetadata", onLoadedMeta);
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("loadedmetadata", onMeta);
     };
-  }, [audioRef, isSeeking]);
+  }, [audioRef, isSeeking, track]);
 
-  const formatTime = (t) => {
+  const format = (t) => {
     if (!t || isNaN(t)) return "0:00";
     const m = Math.floor(t / 60);
     const s = Math.floor(t % 60);
@@ -53,60 +45,27 @@ function Player() {
   if (!track) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-[90px] bg-black text-white z-50 flex items-center px-6">
-
+    <div className="fixed bottom-0 left-0 right-0 h-[90px] bg-black text-white flex items-center px-6 z-50">
       {/* LEFT */}
       <div className="w-[260px] flex items-center gap-4">
-        <img
-          src={track.image || assets.spotify_logo}
-          className="w-12 h-12 rounded object-cover"
-        />
-        <div className="truncate">
-          <p className="font-medium truncate">{track.name}</p>
-          <p className="text-xs text-gray-400 truncate">
-            {track.desc || track.host || ""}
-          </p>
-        </div>
+        <img src={track.image} className="w-12 h-12 rounded" />
+        <p className="truncate">{track.name}</p>
       </div>
 
-      {/* CENTER (TRUE CENTER) */}
+      {/* CENTER */}
       <div className="absolute left-1/2 -translate-x-1/2 w-[45%] flex flex-col items-center">
-
-        {/* CONTROLS */}
-        <div className="flex items-center gap-6 mb-1">
-          <img
-            src={assets.prev_icon}
-            onClick={previousSong}
-            className="w-5 cursor-pointer"
-          />
-
+        <div className="flex gap-6 mb-1">
+          <img src={assets.prev_icon} onClick={previousSong} className="w-5 cursor-pointer" />
           {!playStatus ? (
-            <img
-              src={assets.play_icon}
-              onClick={play}
-              className="w-8 cursor-pointer"
-            />
+            <img src={assets.play_icon} onClick={play} className="w-8 cursor-pointer" />
           ) : (
-            <img
-              src={assets.pause_icon}
-              onClick={pause}
-              className="w-8 cursor-pointer"
-            />
+            <img src={assets.pause_icon} onClick={pause} className="w-8 cursor-pointer" />
           )}
-
-          <img
-            src={assets.next_icon}
-            onClick={nextSong}
-            className="w-5 cursor-pointer"
-          />
+          <img src={assets.next_icon} onClick={nextSong} className="w-5 cursor-pointer" />
         </div>
 
-        {/* SEEK BAR — FINAL FIX 🔥 */}
         <div className="flex items-center gap-3 w-full">
-          <span className="text-xs text-gray-400 w-[40px] text-right">
-            {formatTime(currentTime)}
-          </span>
-
+          <span className="text-xs w-[40px]">{format(currentTime)}</span>
           <input
             type="range"
             min="0"
@@ -115,23 +74,16 @@ function Player() {
             value={currentTime}
             onMouseDown={() => setIsSeeking(true)}
             onMouseUp={(e) => {
-              const audio = audioRef.current;
-              if (audio) {
-                audio.currentTime = Number(e.target.value);
-              }
+              audioRef.current.currentTime = Number(e.target.value);
               setIsSeeking(false);
             }}
             onChange={(e) => setCurrentTime(Number(e.target.value))}
             className="flex-1"
           />
-
-          <span className="text-xs text-gray-400 w-[40px]">
-            {formatTime(duration)}
-          </span>
+          <span className="text-xs w-[40px]">{format(duration)}</span>
         </div>
       </div>
 
-      {/* RIGHT */}
       <div className="w-[260px]" />
     </div>
   );

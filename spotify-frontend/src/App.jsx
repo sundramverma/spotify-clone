@@ -2,11 +2,12 @@ import { useContext } from "react";
 import { Routes, Route } from "react-router-dom";
 
 import Display from "./components/Display";
+import DisplayAlbum from "./components/DisplayAlbum";
 import Player from "./components/Player";
 import Sidebar from "./components/Sidebar";
 import Search from "./components/Search";
 import Music from "./components/Music";
-import Podcasts from "./components/Podcasts"; 
+import Podcasts from "./components/Podcasts";
 import CreatePlaylist from "./components/CreatePlaylist";
 import PlaylistView from "./components/PlaylistView";
 import Navbar from "./components/Navbar";
@@ -16,28 +17,36 @@ const App = () => {
   const { songsData } = useContext(PlayerContext);
 
   return (
-    <div className="h-screen bg-black flex flex-col">
-
+    <div className="h-screen bg-black overflow-hidden">
       {/* MAIN LAYOUT */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex h-full">
+
+        {/* SIDEBAR */}
         <Sidebar />
 
-        <div className="flex-1 overflow-y-auto px-6 pt-4">
+        {/* MAIN CONTENT */}
+        <div className="flex-1 flex flex-col min-h-0">
+
+          {/* NAVBAR (fixed) */}
           <Navbar />
 
-          <Routes>
-            <Route path="/" element={<Display />} />
-            <Route path="/music" element={<Music />} />
-            <Route path="/album/:id" element={<Display />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/podcasts" element={<Podcasts />} />
-            <Route path="/create-playlist" element={<CreatePlaylist />} />
-            <Route path="/playlist/:id" element={<PlaylistView />} />
-          </Routes>
+          {/* SCROLLABLE CONTENT */}
+          <div className="flex-1 overflow-y-auto px-6 pb-32">
+            <Routes>
+              <Route path="/" element={<Display />} />
+              <Route path="/music" element={<Music />} />
+              <Route path="/album/:id" element={<DisplayAlbum />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/podcasts" element={<Podcasts />} />
+              <Route path="/create-playlist" element={<CreatePlaylist />} />
+              <Route path="/playlist/:id" element={<PlaylistView />} />
+            </Routes>
+          </div>
+
         </div>
       </div>
 
-      {/* PLAYER */}
+      {/* PLAYER (fixed bottom) */}
       {songsData && songsData.length !== 0 && <Player />}
     </div>
   );

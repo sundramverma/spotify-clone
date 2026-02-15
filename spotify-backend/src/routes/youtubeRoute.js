@@ -32,7 +32,7 @@ router.get('/search', async (req, res) => {
 });
 
 /**
- * 🔊 FULL YouTube AUDIO — yt-dlp (WINDOWS FIXED)
+ * 🔊 FULL YouTube AUDIO
  */
 router.get('/audio/:videoId', (req, res) => {
   const { videoId } = req.params;
@@ -41,27 +41,48 @@ router.get('/audio/:videoId', (req, res) => {
   res.setHeader('Content-Type', 'audio/mpeg');
   res.setHeader('Accept-Ranges', 'bytes');
 
-  // 🔥 WINDOWS: use .exe OR absolute path
-  const yt = spawn('C:\\Windows\\yt-dlp.exe', [
-    '-f', 'bestaudio',
-    '-o', '-',
-    url
-  ]);
+  // 🔥 Check multiple possible yt-dlp locations
+  const possiblePaths = [
+    'C:\\Windows\\yt-dlp.exe',
+    'yt-dlp', // if in PATH
+    'D:\\data\\yt-dlp.exe',
+    'yt-dlp.exe'
+  ];
 
-  yt.stdout.pipe(res);
+  let pathIndex = 0;
+  
+  const tryNextPath = () => {
+    if (pathIndex >= possiblePaths.length) {
+      console.error('❌ All yt-dlp paths failed');
+      return res.status(500).end();
+    }
 
-  yt.stderr.on('data', (data) => {
-    console.error('yt-dlp error:', data.toString());
-  });
+    const ytPath = possiblePaths[pathIndex++];
+    console.log(`🔄 Trying yt-dlp at: ${ytPath}`);
 
-  yt.on('close', () => {
-    res.end();
-  });
+    const yt = spawn(ytPath, [
+      '-f', 'bestaudio',
+      '-o', '-',
+      url
+    ]);
 
-  yt.on('error', (err) => {
-    console.error('Spawn failed:', err);
-    res.status(500).end();
-  });
+    yt.stdout.pipe(res);
+
+    yt.stderr.on('data', (data) => {
+      console.error('yt-dlp error:', data.toString());
+    });
+
+    yt.on('close', () => {
+      res.end();
+    });
+
+    yt.on('error', (err) => {
+      console.error(`❌ Spawn failed for ${ytPath}:`, err.message);
+      tryNextPath(); // Try next path
+    });
+  };
+
+  tryNextPath();
 });
 
 export default router;

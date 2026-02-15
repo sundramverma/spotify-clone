@@ -16,7 +16,7 @@ import downloadRoute from "./src/routes/downloadRoute.js";
 process.env.YTDL_NO_UPDATE = "1";
 
 const app = express();
-const port = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
 // =========================
 // DB & Cloudinary
@@ -28,6 +28,7 @@ connectCloudinary();
 // Middlewares
 // =========================
 app.use(express.json());
+
 app.use(
   cors({
     origin: [
@@ -35,7 +36,8 @@ app.use(
       "http://localhost:5174",
       "https://sundram-spotify-clone.vercel.app",
     ],
-    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -64,7 +66,7 @@ app.use(
 );
 
 // =========================
-// 🔍 JioSaavn Proxy (FINAL – RENDER SAFE)
+// 🔍 JioSaavn Proxy
 // =========================
 app.get("/api/jiosaavn/search", async (req, res) => {
   const { query } = req.query;
@@ -74,22 +76,41 @@ app.get("/api/jiosaavn/search", async (req, res) => {
   }
 
   try {
-    const response = await fetch(
-      `https://saavn.dev/api/search/songs?query=${encodeURIComponent(
-        query
-      )}&limit=20`
-    );
+    let results = [];
 
-    const json = await response.json();
+    try {
+      const r1 = await fetch(
+        `https://jiosaavn-api.vercel.app/search/songs?query=${encodeURIComponent(
+          query
+        )}`,
+        {
+          headers: {
+            "User-Agent": "Mozilla/5.0",
+            Accept: "application/json",
+          },
+        }
+      );
+      const j1 = await r1.json();
+      results = j1?.data?.results || [];
+    } catch {}
+
+    if (!results.length) {
+      try {
+        const r2 = await fetch(
+          `https://saavn.dev/api/search/songs?query=${encodeURIComponent(
+            query
+          )}&limit=20`
+        );
+        const j2 = await r2.json();
+        results = j2?.data?.results || [];
+      } catch {}
+    }
 
     return res.json({
-      success: true,
-      data: {
-        results: json?.data?.results || [],
-      },
+      success: results.length > 0,
+      data: { results },
     });
-  } catch (error) {
-    console.error("❌ JioSaavn API error:", error.message);
+  } catch {
     return res.json({ success: false, data: { results: [] } });
   }
 });
@@ -107,6 +128,6 @@ app.use("/api/youtube", youtubeRouter);
 // =========================
 app.get("/", (req, res) => res.send("🚀 API Working"));
 
-app.listen(port, () => {
-  console.log(`🔥 Server running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`🔥 Server running on port ${PORT}`);
 });

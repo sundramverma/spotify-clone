@@ -1,154 +1,197 @@
 import { createContext, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import axios from "axios";
 
 export const PlayerContext = createContext();
 
+const API_BASE = "https://spotify-clone-backend-vn9v.onrender.com";
+
 const PlayerContextProvider = ({ children }) => {
-  const url = "http://localhost:5000";
   const audioRef = useRef(null);
-  const lastSrcRef = useRef(null); // 🔥 SEEK BUG FIX
+
+  const [track, setTrack] = useState(null);
+  const [queue, setQueue] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
+  const [playStatus, setPlayStatus] = useState(false);
 
   const [songsData, setSongsData] = useState([]);
   const [podcastsData, setPodcastsData] = useState([]);
 
-  const [track, setTrack] = useState(null);
-  const [playStatus, setPlayStatus] = useState(false);
+  /* =========================
+     FETCH UPLOADED DATA
+  ========================= */
+  useEffect(() => {
+    fetch(`${API_BASE}/api/song/list`)
+      .then(r => r.json())
+      .then(d => setSongsData(d?.songs || []))
+      .catch(() => setSongsData([]));
 
-  // 🔥 SEPARATE QUEUES
-  const [apiQueue, setApiQueue] = useState([]);
-  const [uploadedQueue, setUploadedQueue] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(-1);
+    fetch(`${API_BASE}/api/podcast/list`)
+      .then(r => r.json())
+      .then(d => setPodcastsData(d?.podcasts || []))
+      .catch(() => setPodcastsData([]));
+  }, []);
 
-  /* ▶ PLAY / PAUSE */
-  const play = () => audioRef.current?.play();
-  const pause = () => audioRef.current?.pause();
+  /* =========================
+     CORE PLAY
+  ========================= */
+  const startPlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
 
-  /* ▶ PLAY API QUEUE */
+    audio.load();
+    audio
+      .play()
+      .then(() => setPlayStatus(true))
+      .catch(() => {});
+  };
+
+  const play = () => startPlay();
+
+  const pause = () => {
+    audioRef.current?.pause();
+    setPlayStatus(false);
+  };
+
+  /* =========================
+     ▶️ PLAY API SONG
+  ========================= */
   const playFromApiQueue = (list, index) => {
     if (!list?.length) return;
-    setApiQueue(list);
-    setUploadedQueue([]);
+
+    const item = list[index];
+    setQueue(list);
     setCurrentIndex(index);
-    setTrack({ ...list[index], sourceGroup: "api" });
-  };
 
-  /* ▶ PLAY UPLOADED QUEUE */
-  const playFromUploadedQueue = (list, index) => {
-    if (!list?.length) return;
-    setUploadedQueue(list);
-    setApiQueue([]);
-    setCurrentIndex(index);
-    setTrack({ ...list[index], sourceGroup: "uploaded" });
-  };
-
-  /* ⏭ NEXT */
-  const nextSong = () => {
-    const queue =
-      track?.sourceGroup === "api" ? apiQueue : uploadedQueue;
-
-    if (!queue || currentIndex >= queue.length - 1) return;
-
-    const i = currentIndex + 1;
-    setCurrentIndex(i);
-    setTrack({ ...queue[i], sourceGroup: track.sourceGroup });
-  };
-
-  /* ⏮ PREVIOUS */
-  const previousSong = () => {
-    const queue =
-      track?.sourceGroup === "api" ? apiQueue : uploadedQueue;
-
-    if (!queue || currentIndex <= 0) return;
-
-    const i = currentIndex - 1;
-    setCurrentIndex(i);
-    setTrack({ ...queue[i], sourceGroup: track.sourceGroup });
-  };
-
-  /* 🔊 LOAD AUDIO (🔥 SEEK RESET FIX HERE) */
-  useEffect(() => {
-    if (!track || !audioRef.current) return;
-
-    let src = "";
-
-    if (track.source === "youtube") {
-      src = `${url}/api/youtube/audio/${track.id}`;
-    } else {
-      const path =
-        track.audioUrl || track.file || track.audio || track.filePath;
-      if (path) {
-        src = path.startsWith("http") ? path : `${url}${path}`;
-      }
+    // ▶️ YouTube redirect
+    if (item.youtubeId) {
+      window.open(
+        `https://www.youtube.com/watch?v=${item.youtubeId}`,
+        "_blank"
+      );
+      return;
     }
 
-    if (!src) return;
+    setTrack({
+      name: item.name,
+      image: item.image,
+      desc: item.desc || "",
+      src: item.audioUrl,
+      type: "api",
+    });
 
-    // 🚨 SAME SONG → DO NOT RELOAD (SEEK SAFE)
-    if (lastSrcRef.current === src) return;
+    setTimeout(startPlay, 50);
+  };
 
-    lastSrcRef.current = src;
+  /* =========================
+     ▶️ PLAY UPLOADED SONG / PODCAST
+  ========================= */
+  const playFromUploadedQueue = (list, index) => {
+    if (!list?.length) return;
 
-    const audio = audioRef.current;
-    audio.pause();
-    audio.src = src;
-    audio.load();
-    audio.play().catch(() => {});
-  }, [track]);
+    const item = list[index];
+    setQueue(list);
+    setCurrentIndex(index);
 
-  /* 🔄 PLAY / PAUSE ICON SYNC */
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    setTrack({
+      name: item.name,
+      image: item.image,
+      desc: item.desc || item.host || "",
+      src: item.file,
+      type: "uploaded",
+    });
 
-    audio.onplay = () => setPlayStatus(true);
-    audio.onpause = () => setPlayStatus(false);
+    setTimeout(startPlay, 50);
+  };
 
-    return () => {
-      audio.onplay = null;
-      audio.onpause = null;
-    };
-  }, []);
+  /* =========================
+     ▶️ PLAY FROM PLAYLIST (🔥 FINAL FIX)
+  ========================= */
+  const playFromPlaylist = (list, index) => {
+    if (!list?.length) return;
 
-  /* ▶ AUTO NEXT ON END */
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const item = list[index];
+    setQueue(list);
+    setCurrentIndex(index);
 
-    audio.onended = nextSong;
-    return () => (audio.onended = null);
-  }, [currentIndex, apiQueue, uploadedQueue, track]);
+    // ✅ Uploaded
+    if (item.file) {
+      setTrack({
+        name: item.name,
+        image: item.image,
+        desc: item.desc || item.host || "",
+        src: item.file,
+        type: "uploaded",
+      });
+      setTimeout(startPlay, 50);
+      return;
+    }
 
-  /* 📡 LOAD DATA */
-  useEffect(() => {
-    axios
-      .get(`${url}/api/song/list`)
-      .then((r) => r.data?.songs && setSongsData(r.data.songs));
+    // ▶️ YouTube
+    if (item.youtubeId) {
+      window.open(
+        `https://www.youtube.com/watch?v=${item.youtubeId}`,
+        "_blank"
+      );
+      return;
+    }
 
-    axios
-      .get(`${url}/api/podcast/list`)
-      .then((r) => r.data?.podcasts && setPodcastsData(r.data.podcasts));
-  }, []);
+    // ✅ API
+    if (item.audioUrl) {
+      setTrack({
+        name: item.name,
+        image: item.image,
+        desc: item.desc || "",
+        src: item.audioUrl,
+        type: "api",
+      });
+      setTimeout(startPlay, 50);
+    }
+  };
+
+  /* =========================
+     NEXT / PREVIOUS
+  ========================= */
+  const nextSong = () => {
+    if (!queue.length) return;
+    const nextIndex = (currentIndex + 1) % queue.length;
+    playFromPlaylist(queue, nextIndex);
+  };
+
+  const previousSong = () => {
+    if (!queue.length) return;
+    const prevIndex =
+      (currentIndex - 1 + queue.length) % queue.length;
+    playFromPlaylist(queue, prevIndex);
+  };
 
   return (
     <PlayerContext.Provider
       value={{
         audioRef,
         track,
-        songsData,
-        podcastsData,
         playStatus,
         play,
         pause,
         nextSong,
         previousSong,
+        songsData,
+        podcastsData,
         playFromApiQueue,
         playFromUploadedQueue,
-        currentIndex, // ✅ green highlight + navigation
+        playFromPlaylist, // ✅ IMPORTANT
+        currentIndex,
       }}
     >
       {children}
-      <audio ref={audioRef} preload="auto" />
+
+      {/* 🔊 AUDIO ELEMENT */}
+      <audio
+        ref={audioRef}
+        src={track?.src || ""}
+        preload="auto"
+        crossOrigin="anonymous"
+        onEnded={nextSong}
+      />
     </PlayerContext.Provider>
   );
 };

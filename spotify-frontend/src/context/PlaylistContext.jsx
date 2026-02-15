@@ -10,22 +10,33 @@ const PlaylistContextProvider = ({ children }) => {
   const [playlists, setPlaylists] = useState([]);
   const [currentPlaylist, setCurrentPlaylist] = useState(null);
 
-  /* LOAD FROM LOCAL STORAGE */
+  /* =========================
+     LOAD PLAYLISTS
+  ========================= */
   useEffect(() => {
     const saved = localStorage.getItem("spotify_playlists");
-    if (saved) setPlaylists(JSON.parse(saved));
+    if (saved) {
+      try {
+        setPlaylists(JSON.parse(saved));
+      } catch {
+        setPlaylists([]);
+      }
+    }
   }, []);
 
-  /* SAVE TO LOCAL STORAGE */
+  /* =========================
+     SAVE PLAYLISTS
+  ========================= */
   useEffect(() => {
-    if (playlists.length > 0) {
-      localStorage.setItem("spotify_playlists", JSON.stringify(playlists));
-    } else {
-      localStorage.removeItem("spotify_playlists");
-    }
+    localStorage.setItem(
+      "spotify_playlists",
+      JSON.stringify(playlists)
+    );
   }, [playlists]);
 
-  /* CREATE PLAYLIST */
+  /* =========================
+     CREATE PLAYLIST
+  ========================= */
   const createPlaylist = (name, description = "") => {
     const newPlaylist = {
       id: Date.now().toString(),
@@ -33,13 +44,22 @@ const PlaylistContextProvider = ({ children }) => {
       description,
       songs: [],
       createdAt: new Date().toISOString(),
-      image: songsData[0]?.image || null
+      image: songsData?.[0]?.image || null,
     };
-    setPlaylists([...playlists, newPlaylist]);
+
+    setPlaylists(prev => [...prev, newPlaylist]);
     return newPlaylist;
   };
 
-  /* ADD MULTIPLE SONGS */
+  /* =========================
+     UNIQUE SONG KEY
+  ========================= */
+  const getSongKey = (song) =>
+    song?._id || song?.id || song?.youtubeId;
+
+  /* =========================
+     ADD MULTIPLE SONGS
+  ========================= */
   const addMultipleSongsToPlaylist = (playlistId, songsArray) => {
     setPlaylists(prev =>
       prev.map(pl =>
@@ -49,29 +69,43 @@ const PlaylistContextProvider = ({ children }) => {
               songs: [
                 ...pl.songs,
                 ...songsArray.filter(
-                  s => !pl.songs.some(ps => ps._id === s._id)
-                )
-              ]
+                  s =>
+                    !pl.songs.some(
+                      ps => getSongKey(ps) === getSongKey(s)
+                    )
+                ),
+              ],
             }
           : pl
       )
     );
   };
 
-  const addSongToPlaylist = (playlistId, song) => {
+  const addSongToPlaylist = (playlistId, song) =>
     addMultipleSongsToPlaylist(playlistId, [song]);
-  };
 
-  const removeSongFromPlaylist = (playlistId, songId) => {
+  /* =========================
+     REMOVE SONG
+  ========================= */
+  const removeSongFromPlaylist = (playlistId, song) => {
+    const key = getSongKey(song);
     setPlaylists(prev =>
       prev.map(pl =>
         pl.id === playlistId
-          ? { ...pl, songs: pl.songs.filter(s => s._id !== songId) }
+          ? {
+              ...pl,
+              songs: pl.songs.filter(
+                s => getSongKey(s) !== key
+              ),
+            }
           : pl
       )
     );
   };
 
+  /* =========================
+     DELETE PLAYLIST
+  ========================= */
   const deletePlaylist = (playlistId) => {
     setPlaylists(prev => prev.filter(p => p.id !== playlistId));
     if (currentPlaylist?.id === playlistId) {
@@ -93,7 +127,7 @@ const PlaylistContextProvider = ({ children }) => {
         addMultipleSongsToPlaylist,
         removeSongFromPlaylist,
         deletePlaylist,
-        getPlaylist
+        getPlaylist,
       }}
     >
       {children}
@@ -102,7 +136,7 @@ const PlaylistContextProvider = ({ children }) => {
 };
 
 PlaylistContextProvider.propTypes = {
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
 };
 
 export default PlaylistContextProvider;

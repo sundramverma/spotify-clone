@@ -1,11 +1,14 @@
 import express from "express";
-import { addSong, listSong, removeSong } from "../controllers/songController.js";
 import upload from "../middleware/multer.js";
+import {
+  addSong,
+  listSong,
+  removeSong,
+} from "../controllers/songController.js";
 
-const songRouter = express.Router();
+const router = express.Router();
 
-// ADD SONG
-songRouter.post(
+router.post(
   "/add",
   upload.fields([
     { name: "image", maxCount: 1 },
@@ -14,10 +17,7 @@ songRouter.post(
   addSong
 );
 
-// LIST SONGS  ✅ (THIS IS WHAT FRONTEND USES)
-songRouter.get("/list", listSong);
+router.get("/list", listSong);
+router.delete("/remove/:id", removeSong);
 
-// REMOVE SONG
-songRouter.delete("/remove/:id", removeSong);
-
-export default songRouter;
+export default router;
